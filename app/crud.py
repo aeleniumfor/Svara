@@ -19,6 +19,7 @@ def _apply_status_invariants(task: Task, new_status: TaskStatus | None = None) -
     """Apply invariants based on task status.
 
     - done_at is set only when status is done
+    - start_at is set when status becomes doing
     """
     status = new_status if new_status is not None else task.status
 
@@ -28,6 +29,10 @@ def _apply_status_invariants(task: Task, new_status: TaskStatus | None = None) -
             task.done_at = datetime.now(timezone.utc)
     else:
         task.done_at = None
+
+    # doing への遷移時に start_at を現在時刻で上書き
+    if status == TaskStatus.doing:
+        task.start_at = datetime.now(timezone.utc)
 
 
 # =============================================================================
@@ -81,6 +86,7 @@ def create_task(db: Session, task_in: TaskCreate, tag_ids: list[int] | None = No
         title=task_in.title,
         note=task_in.note,
         status=task_in.status,
+        start_at=task_in.start_at,
         due_at=task_in.due_at,
     )
 

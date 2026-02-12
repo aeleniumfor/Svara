@@ -34,6 +34,7 @@ class TaskCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     note: str | None = None
     status: TaskStatus = TaskStatus.backlog
+    start_at: datetime | None = None
     due_at: datetime | None = None
 
 
@@ -43,6 +44,7 @@ class TaskUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=255)
     note: str | None = None
     status: TaskStatus | None = None
+    start_at: datetime | None = None
     due_at: datetime | None = None
 
 
@@ -55,6 +57,7 @@ class TaskResponse(BaseModel):
     title: str
     note: str | None
     status: TaskStatus
+    start_at: datetime | None
     due_at: datetime | None
     created_at: datetime
     updated_at: datetime
