@@ -1,145 +1,85 @@
 # Svara
 
-シンプルなタスク管理アプリケーション
+シンプルなタスク管理アプリケーションです。  
+FastAPI（バックエンド） + SvelteKit（フロントエンド）で構成されています。
+
+## このREADMEでわかること
+
+- 最短でローカル起動する手順
+- 実装済み機能（現状）
+- API のエンドポイント一覧
+- よく使う開発コマンド
 
 ## 技術スタック
 
 ### バックエンド
 - **Python 3.13**
-- **pipenv**: パッケージ管理・仮想環境
-- **FastAPI**: REST API フレームワーク
-- **SQLAlchemy 2.0**: ORM
-- **Pydantic v2**: バリデーション
-- **SQLite**: データベース
+- **FastAPI**
+- **SQLAlchemy 2.0**
+- **Pydantic v2**
+- **SQLite**（`svara.db`）
+- **pipenv**（依存管理）
 
 ### フロントエンド
-- **Vue 3**: Composition API
-- **TypeScript**: 型安全
-- **Vite**: ビルドツール
-- **素のCSS**: スタイリング
+- **SvelteKit / Svelte 5**
+- **TypeScript**
+- **Vite**
+- **svelte-dnd-action**（ドラッグ&ドロップ）
 
-## セットアップ
+> 以前の Vue 構成ではなく、現在のフロントエンドは SvelteKit ベースです。
 
-### バックエンド
+## 前提条件
+
+- **Python 3.13 以上**
+- **Node.js 20 以上**
+- **npm 10 以上**
+
+バージョン確認:
 
 ```bash
-# 依存関係のインストール
-pipenv install
+python --version
+node --version
+npm --version
+```
 
-# 開発サーバーの起動
+## クイックスタート
+
+### 1) バックエンド起動
+
+```bash
+pipenv install
 pipenv run uvicorn app.main:app --reload
 ```
 
-### フロントエンド
+- API: `http://localhost:8000`
+- Swagger UI: `http://localhost:8000/docs`
+
+### 2) フロントエンド起動
 
 ```bash
-# フロントエンドディレクトリに移動
 cd frontend
-
-# 依存関係のインストール
 npm install
-
-# 開発サーバーの起動
 npm run dev
 ```
 
-### 開発環境の起動
+- 画面: `http://localhost:5173`
+- `vite.config.ts` で `/api/*` は `http://localhost:8000` にプロキシされます
 
-1. バックエンドサーバーを起動（`http://localhost:8000`）
-2. フロントエンドサーバーを起動（`http://localhost:5173`）
-3. ブラウザで `http://localhost:5173` を開く
+## 実装済み機能（現状）
 
-## 使い方
+### タスク
+- タスクの作成 / 一覧 / 取得 / 更新 / 削除
+- `complete` クイックアクション（`done` 化）
+- `done_at` の自動整合（`done` のときのみ設定）
 
-### 基本的な操作
+### タグ
+- タグの作成 / 一覧 / 取得 / 削除
+- タグ名の正規化（`trim + lowercase`）
 
-#### 1. タスクの作成
-
-1. 画面上部の **「+ New Task」** ボタンをクリック
-2. フォームに以下を入力：
-   - **タイトル**（必須）: タスクの名前
-   - **メモ**: 詳細や補足情報
-   - **ステータス**: 初期状態は「Inbox」
-   - **期限**: 任意で設定
-   - **Today ランク**: 1-3の数字（「Next」または「Doing」のときのみ設定可能）
-   - **タグ**: 既存のタグを選択、または後で追加
-3. **「保存」** をクリック
-
-#### 2. タスクの管理
-
-各タスクカードには以下のボタンがあります：
-
-- **→next**: Inbox のタスクを「Next」に昇格
-- **✓done**: タスクを完了状態にする
-- **✎**: タスクを編集
-- **×**: タスクを削除
-
-#### 3. ビュー（タブ）の使い方
-
-画面上部のタブで、タスクを分類して表示します：
-
-- **Inbox**: 未整理のタスク（思いついたらまず入れる）
-- **Today**: 今日やる優先度の高いタスク（ランク1-3）
-- **Backlog**: 実行可能だが Today に選ばれていないタスク
-- **Done**: 完了したタスク
-
-#### 4. ワークフロー例
-
-```
-1. タスクを思いつく
-   ↓
-2. 「+ New Task」で Inbox に追加
-   ↓
-3. Inbox で整理し、「→next」で Next に昇格
-   ↓
-4. 今日やるなら、編集して Today ランク（1-3）を設定
-   ↓
-5. 着手したら、ステータスを「Doing」に変更
-   ↓
-6. 完了したら「✓done」をクリック
-```
-
-### ステータスの意味
-
-| ステータス | 説明 | 使用例 |
-|----------|------|--------|
-| **Inbox** | 未整理 | 思いついたタスクをとりあえず入れる |
-| **Next** | 次にやる | 実行可能になったタスク |
-| **Doing** | 着手中 | 現在作業中のタスク |
-| **Waiting** | 外部待ち | 誰かの返事待ちなど |
-| **Done** | 完了 | 終わったタスク |
-
-### Today ランクについて
-
-- **1-3の数字**で優先度を設定
-- **Next** または **Doing** のタスクのみ設定可能
-- 同じランクは1つのタスクのみ（設定時に自動的に他のタスクから解除）
-- **Today ビュー**でランク順に表示される
-
-### タグの使い方
-
-- タスクにタグを付けて分類できます
-- タスク作成・編集時に既存のタグを選択
-- タグは自動的に正規化されます（大文字小文字・空白の違いは無視）
-
-### よくある操作
-
-#### タスクを今日やるリストに追加
-
-1. タスクカードの **「✎」** をクリック
-2. ステータスを **「Next」** または **「Doing」** に変更
-3. **Today ランク** に 1-3 の数字を入力
-4. **「保存」** をクリック
-
-#### タスクを完了する
-
-- タスクカードの **「✓done」** をクリック
-- または編集画面でステータスを **「Done」** に変更
-
-#### タスクを削除する
-
-- タスクカードの **「×」** をクリック
-- 確認ダイアログで **「OK」** を選択
+### 画面
+- Backlog 画面
+- 期限なしタスク画面
+- Done 画面
 
 ## API エンドポイント
 
@@ -156,31 +96,68 @@ npm run dev
 - `PATCH /tasks/{id}` - タスク更新
 - `DELETE /tasks/{id}` - タスク削除
 
-### Views (リスト)
-- `GET /views/inbox` - Inbox（status = inbox）
-- `GET /views/today` - Today（today_rank が設定されているタスク）
-- `GET /views/backlog` - Backlog（next/doing/waiting かつ today_rank 未設定）
-- `GET /views/done` - Done（status = done）
+### Views
+- `GET /views/backlog` - backlog 一覧
+- `GET /views/done` - done 一覧
 
 ### Quick Actions
-- `POST /tasks/{id}/promote` - inbox → next に昇格
 - `POST /tasks/{id}/complete` - タスクを完了
 
-## データモデル
+## データモデル（主要項目）
 
 ### TaskStatus
-- `inbox`: 未整理
-- `next`: 次にやる
-- `doing`: 着手中
-- `waiting`: 外部待ち
-- `done`: 完了
+- `backlog`
+- `doing`
+- `waiting`
+- `done`
 
-### 不変条件
-- **完了整合性**: `done_at` は status=done のときのみ設定
-- **Today整合性**: `today_rank` は 1-3、next/doing のときのみ、重複なし
-- **タグ整合性**: 同一タスクに同一タグの重複なし、Tag.key は一意
+### Task の主要フィールド
+- `title`（必須）
+- `note`（任意）
+- `status`
+- `due_at`（任意）
+- `done_at`（`done` 時のみ設定）
 
-## API ドキュメント
+## 開発時によく使うコマンド
 
-サーバー起動後、以下のURLでSwagger UIが利用可能:
-- http://localhost:8000/docs
+### バックエンド
+
+```bash
+# テスト（現状はテストファイル未配置のため 0 tests になることがあります）
+pipenv run pytest
+```
+
+### フロントエンド
+
+```bash
+cd frontend
+
+# 型チェック
+npm run check
+
+# 本番ビルド
+npm run build
+```
+
+## データ保存とリセット
+
+- SQLite ファイルはプロジェクトルートの `svara.db` に作成されます。
+- 開発データをリセットしたい場合:
+
+```bash
+rm -f svara.db
+```
+
+次回バックエンド起動時にテーブルが再作成されます。
+
+## よくあるハマりどころ
+
+- **CORS エラーが出る**  
+  フロントエンドを `5173` / `3000` 以外で起動した場合、`app/main.py` の `allow_origins` に追記が必要です。
+- **API 接続できない**  
+  先にバックエンド（`localhost:8000`）が起動しているか確認してください。
+
+## 補足ドキュメント
+
+- 要件: `docs/functional-requirements.md`
+- ステータス仕様: `docs/status-spec.md`
