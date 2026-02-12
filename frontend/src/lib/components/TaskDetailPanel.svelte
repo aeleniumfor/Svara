@@ -17,6 +17,7 @@
 
 	// Local editing state
 	let editTitle = $state('');
+	let editStartAt = $state('');
 	let editDueAt = $state('');
 	let editNote = $state('');
 	let saving = $state(false);
@@ -27,6 +28,7 @@
 
 	// Remember original values for change detection
 	let originalTitle = $state('');
+	let originalStartAt = $state('');
 	let originalDueAt = $state('');
 	let originalNote = $state('');
 
@@ -36,14 +38,17 @@
 			lastSyncedTaskId = task.id;
 
 			const title = task.title;
+			const startAt = task.start_at ? toDateInputValue(task.start_at) : '';
 			const dueAt = task.due_at ? toDateInputValue(task.due_at) : '';
 			const note = task.note || '';
 
 			editTitle = title;
+			editStartAt = startAt;
 			editDueAt = dueAt;
 			editNote = note;
 
 			originalTitle = title;
+			originalStartAt = startAt;
 			originalDueAt = dueAt;
 			originalNote = note;
 		}
@@ -73,6 +78,11 @@
 			hasChanges = true;
 		}
 
+		if (editStartAt !== originalStartAt) {
+			data.start_at = editStartAt ? fromDateInputValue(editStartAt) : null;
+			hasChanges = true;
+		}
+
 		if (editDueAt !== originalDueAt) {
 			data.due_at = editDueAt ? fromDateInputValue(editDueAt) : null;
 			hasChanges = true;
@@ -93,6 +103,7 @@
 			const updated = await taskStore.updateTask(task.id, data);
 			// Update originals to the saved values
 			originalTitle = updated.title;
+			originalStartAt = updated.start_at ? toDateInputValue(updated.start_at) : '';
 			originalDueAt = updated.due_at ? toDateInputValue(updated.due_at) : '';
 			originalNote = updated.note || '';
 			toastStore.add('保存しました', 'success');
@@ -105,6 +116,11 @@
 	}
 
 	function handleBlur() {
+		clearTimeout(saveTimer);
+		save();
+	}
+
+	function handleStartAtChange() {
 		clearTimeout(saveTimer);
 		save();
 	}
@@ -221,6 +237,21 @@
 		</div>
 
 		<div class="field">
+			<label class="field-label" for="detail-start">開始日</label>
+			<input
+				id="detail-start"
+				type="date"
+				class="field-input"
+				bind:value={editStartAt}
+				onchange={handleStartAtChange}
+				disabled={task.status === 'done'}
+			/>
+			{#if task.start_at}
+				<span class="field-hint">{formatDateDisplay(task.start_at)}</span>
+			{/if}
+		</div>
+
+		<div class="field">
 			<label class="field-label" for="detail-due">期限</label>
 			<input
 				id="detail-due"
@@ -324,7 +355,7 @@
 
 		<div class="field note-field">
 			<span class="field-label">ノート</span>
-			<NoteEditor bind:value={editNote} onsave={scheduleAutoSave} />
+			<NoteEditor bind:value={editNote} onsave={scheduleAutoSave} taskTitle={task.title} />
 		</div>
 	</div>
 
