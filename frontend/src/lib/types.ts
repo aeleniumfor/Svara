@@ -12,6 +12,7 @@ export interface Task {
 	title: string;
 	note: string | null;
 	status: TaskStatus;
+	start_at: string | null;
 	due_at: string | null;
 	created_at: string;
 	updated_at: string;
@@ -23,6 +24,7 @@ export interface TaskCreate {
 	title: string;
 	note?: string | null;
 	status?: TaskStatus;
+	start_at?: string | null;
 	due_at?: string | null;
 	tag_ids?: number[];
 }
@@ -31,6 +33,7 @@ export interface TaskUpdate {
 	title?: string | null;
 	note?: string | null;
 	status?: TaskStatus | null;
+	start_at?: string | null;
 	due_at?: string | null;
 	tag_ids?: number[] | null;
 }

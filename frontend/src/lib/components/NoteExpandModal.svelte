@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { marked } from 'marked';
 	import type { Renderer } from 'marked';
-	import NoteExpandModal from './NoteExpandModal.svelte';
 
 	marked.setOptions({
 		breaks: true,
@@ -11,16 +10,18 @@
 	let {
 		value = $bindable(''),
 		onsave,
-		taskTitle = ''
+		taskTitle = '',
+		onclose
 	}: {
 		value: string;
 		onsave?: () => void;
-		taskTitle?: string;
+		taskTitle: string;
+		onclose: () => void;
 	} = $props();
 
 	let mode = $state<'edit' | 'preview'>('edit');
 	let textareaRef: HTMLTextAreaElement | undefined;
-	let showExpandModal = $state(false);
+	let modalRef: HTMLDivElement | undefined;
 	let checkboxIndex = 0;
 
 	// カスタムレンダラーでチェックリストにdata-checkbox-indexを付与
@@ -59,18 +60,15 @@
 		value = newValue;
 		onsave?.();
 
-		// カーソル位置を設定
 		setTimeout(() => {
 			if (!textareaRef) return;
 			if (selectText) {
-				// プレースホルダーテキストを選択
 				const selectStart = start + before.length;
 				const selectEnd = selectStart + selectText.length;
 				textareaRef.setSelectionRange(selectStart, selectEnd);
 			} else if (after.includes('url')) {
-				// リンクの場合、url部分を選択
 				const urlStart = start + before.length + selectedText.length + after.indexOf('url');
-				const urlEnd = urlStart + 3; // "url"の長さ
+				const urlEnd = urlStart + 3;
 				textareaRef.setSelectionRange(urlStart, urlEnd);
 			} else {
 				textareaRef.setSelectionRange(start + newText.length, start + newText.length);
@@ -86,12 +84,10 @@
 		const beforeLen = before.length;
 		const afterLen = after.length;
 
-		// 既に囲まれているかチェック
 		const beforeText = textareaRef.value.substring(Math.max(0, start - beforeLen), start);
 		const afterText = textareaRef.value.substring(end, Math.min(textareaRef.value.length, end + afterLen));
 
 		if (beforeText === before && afterText === after) {
-			// 解除
 			const newValue =
 				textareaRef.value.substring(0, start - beforeLen) +
 				text +
@@ -104,7 +100,6 @@
 				textareaRef.focus();
 			}, 0);
 		} else {
-			// 追加
 			insertText(before, after);
 		}
 	}
@@ -129,7 +124,6 @@
 			currentPos += lines[i].length + 1;
 		}
 
-		// 選択範囲の全行にプレフィックスを追加
 		for (let i = startLine; i <= endLine; i++) {
 			lines[i] = prefix + lines[i];
 		}
@@ -167,14 +161,11 @@
 		if (headingMatch) {
 			const level = headingMatch[1].length;
 			if (level === 3) {
-				// 解除
 				lines[lineIndex] = line.replace(/^###\s/, '');
 			} else {
-				// レベルアップ
 				lines[lineIndex] = line.replace(/^#+\s/, '#'.repeat(level + 1) + ' ');
 			}
 		} else {
-			// 新規追加
 			lines[lineIndex] = '## ' + line;
 		}
 
@@ -226,20 +217,17 @@
 			currentPos += lines[i].length + 1;
 		}
 
-		const indent = '    '; // 4スペース
+		const indent = '    ';
 
 		if (e.shiftKey) {
-			// Shift+Tab: インデント削除
 			for (let i = startLine; i <= endLine; i++) {
 				if (lines[i].startsWith(indent)) {
 					lines[i] = lines[i].substring(4);
 				} else if (lines[i].startsWith(' ')) {
-					// 4スペース未満の場合、先頭のスペースを全て削除
 					lines[i] = lines[i].replace(/^ +/, '');
 				}
 			}
 		} else {
-			// Tab: インデント追加
 			for (let i = startLine; i <= endLine; i++) {
 				lines[i] = indent + lines[i];
 			}
@@ -285,10 +273,8 @@
 		const indentMatch = line.match(/^(\s*)/);
 		const indent = indentMatch ? indentMatch[1] : '';
 
-		// プレフィックスのみの行かチェック
 		const contentAfterPrefix = line.substring(indent.length).trim();
 		if (!contentAfterPrefix || contentAfterPrefix.match(/^[-*]\s*$/) || contentAfterPrefix.match(/^[-*]\s*\[[ x]\]\s*$/) || contentAfterPrefix.match(/^\d+\.\s*$/) || contentAfterPrefix.match(/^>\s*$/)) {
-			// リスト終了: プレフィックスを削除
 			e.preventDefault();
 			lines[lineIndex] = indent;
 			const newValue = lines.join('\n');
@@ -303,7 +289,6 @@
 			return;
 		}
 
-		// リストパターンを検出
 		const listMatch = line.match(/^(\s*)([-*])\s+(\[[ x]\]\s+)?/);
 		const numberedMatch = line.match(/^(\s*)(\d+)\.\s+/);
 		const quoteMatch = line.match(/^(\s*)>\s+/);
@@ -362,7 +347,6 @@
 		handleIndent(e);
 		handleEnter(e);
 
-		// Ctrl+B, Ctrl+I, Ctrl+K
 		if (e.ctrlKey || e.metaKey) {
 			if (e.key === 'b') {
 				e.preventDefault();
@@ -374,6 +358,12 @@
 				e.preventDefault();
 				insertText('[', '](url)', 'リンクテキスト');
 			}
+		}
+
+		// Esc キーでモーダルを閉じる
+		if (e.key === 'Escape') {
+			e.preventDefault();
+			onclose();
 		}
 	}
 
@@ -405,127 +395,233 @@
 		}
 	}
 
+	// モーダル外クリックで閉じる
+	function handleOverlayClick(e: MouseEvent) {
+		if (e.target === e.currentTarget) {
+			onclose();
+		}
+	}
+
+	// body のスクロールを無効化
+	$effect(() => {
+		document.body.style.overflow = 'hidden';
+		return () => {
+			document.body.style.overflow = '';
+		};
+	});
+
+	// モーダルが開いたら textarea にフォーカス
+	$effect(() => {
+		if (mode === 'edit' && textareaRef) {
+			setTimeout(() => {
+				textareaRef?.focus();
+			}, 100);
+		}
+	});
+
 	// チェックボックスインデックスをリセット
 	$effect(() => {
 		checkboxIndex = 0;
 	});
+
+	// 閉じる時に保存
+	function handleClose() {
+		onsave?.();
+		onclose();
+	}
 </script>
 
-<div class="note-editor">
-	<div class="editor-toolbar">
-		<button
-			class="mode-btn"
-			class:active={mode === 'edit'}
-			onclick={() => (mode = 'edit')}
-			type="button"
-		>
-			✏️ 編集
-		</button>
-		<button
-			class="mode-btn"
-			class:active={mode === 'preview'}
-			onclick={() => (mode = 'preview')}
-			type="button"
-		>
-			👁️ プレビュー
-		</button>
-		{#if taskTitle}
-			<button
-				class="expand-btn"
-				onclick={() => (showExpandModal = true)}
-				type="button"
-				title="拡大"
-			>
-				↗ 拡大
+<div class="modal-overlay" onclick={handleOverlayClick}>
+	<div class="modal" bind:this={modalRef}>
+		<div class="modal-header">
+			<h3 class="modal-title">📝 ノート - {taskTitle}</h3>
+			<button class="modal-close" onclick={handleClose} type="button" aria-label="閉じる">
+				×
 			</button>
+		</div>
+
+		<div class="modal-toolbar">
+			<button
+				class="mode-btn"
+				class:active={mode === 'edit'}
+				onclick={() => (mode = 'edit')}
+				type="button"
+			>
+				✏️ 編集
+			</button>
+			<button
+				class="mode-btn"
+				class:active={mode === 'preview'}
+				onclick={() => (mode = 'preview')}
+				type="button"
+			>
+				👁️ プレビュー
+			</button>
+			<button class="shrink-btn" onclick={handleClose} type="button" title="縮小">
+				↙ 縮小
+			</button>
+		</div>
+
+		{#if mode === 'edit'}
+			<div class="markdown-toolbar">
+				<div class="toolbar-group">
+					<button class="toolbar-btn" onclick={() => toggleWrap('**', '**')} type="button" title="太字 (Ctrl+B)">
+						<strong>B</strong>
+					</button>
+					<button class="toolbar-btn" onclick={() => toggleWrap('*', '*')} type="button" title="斜体 (Ctrl+I)">
+						<em>I</em>
+					</button>
+					<button class="toolbar-btn" onclick={() => toggleWrap('~~', '~~')} type="button" title="取り消し線">
+						<s>S</s>
+					</button>
+				</div>
+				<div class="toolbar-divider"></div>
+				<div class="toolbar-group">
+					<button class="toolbar-btn" onclick={() => insertHeading()} type="button" title="見出し">
+						H▾
+					</button>
+					<button class="toolbar-btn" onclick={() => insertAtLineStart('- ')} type="button" title="箇条書き">
+						≡
+					</button>
+					<button class="toolbar-btn" onclick={() => insertAtLineStart('- [ ] ')} type="button" title="チェックリスト">
+						☐
+					</button>
+				</div>
+				<div class="toolbar-divider"></div>
+				<div class="toolbar-group">
+					<button
+						class="toolbar-btn"
+						onclick={() => insertText('[', '](url)', 'リンクテキスト')}
+						type="button"
+						title="リンク (Ctrl+K)"
+					>
+						🔗
+					</button>
+					<button class="toolbar-btn" onclick={() => insertCode()} type="button" title="コード">
+						&lt;&gt;
+					</button>
+					<button class="toolbar-btn" onclick={() => insertAtLineStart('> ')} type="button" title="引用">
+						&gt;
+					</button>
+				</div>
+			</div>
+			<textarea
+				class="modal-textarea"
+				bind:value
+				bind:this={textareaRef}
+				oninput={() => onsave?.()}
+				onkeydown={handleKeyDown}
+				placeholder="Markdownで記述できます..."
+			></textarea>
+		{:else}
+			<div class="modal-preview markdown-body" onclick={handleCheckboxClick}>
+				{#if value}
+					{@html renderedHtml}
+				{:else}
+					<p class="empty-note">ノートが未入力です</p>
+				{/if}
+			</div>
 		{/if}
 	</div>
-
-	{#if mode === 'edit'}
-		<div class="markdown-toolbar">
-			<div class="toolbar-group">
-				<button class="toolbar-btn" onclick={() => toggleWrap('**', '**')} type="button" title="太字 (Ctrl+B)">
-					<strong>B</strong>
-				</button>
-				<button class="toolbar-btn" onclick={() => toggleWrap('*', '*')} type="button" title="斜体 (Ctrl+I)">
-					<em>I</em>
-				</button>
-				<button class="toolbar-btn" onclick={() => toggleWrap('~~', '~~')} type="button" title="取り消し線">
-					<s>S</s>
-				</button>
-			</div>
-			<div class="toolbar-divider"></div>
-			<div class="toolbar-group">
-				<button class="toolbar-btn" onclick={() => insertHeading()} type="button" title="見出し">
-					H▾
-				</button>
-				<button class="toolbar-btn" onclick={() => insertAtLineStart('- ')} type="button" title="箇条書き">
-					≡
-				</button>
-				<button class="toolbar-btn" onclick={() => insertAtLineStart('- [ ] ')} type="button" title="チェックリスト">
-					☐
-				</button>
-			</div>
-			<div class="toolbar-divider"></div>
-			<div class="toolbar-group">
-				<button
-					class="toolbar-btn"
-					onclick={() => insertText('[', '](url)', 'リンクテキスト')}
-					type="button"
-					title="リンク (Ctrl+K)"
-				>
-					🔗
-				</button>
-				<button class="toolbar-btn" onclick={() => insertCode()} type="button" title="コード">
-					&lt;&gt;
-				</button>
-				<button class="toolbar-btn" onclick={() => insertAtLineStart('> ')} type="button" title="引用">
-					&gt;
-				</button>
-			</div>
-		</div>
-		<textarea
-			class="note-textarea"
-			bind:value
-			bind:this={textareaRef}
-			oninput={() => onsave?.()}
-			onkeydown={handleKeyDown}
-			placeholder="Markdownで記述できます..."
-			rows="12"
-		></textarea>
-	{:else}
-		<div class="note-preview markdown-body" onclick={handleCheckboxClick}>
-			{#if value}
-				{@html renderedHtml}
-			{:else}
-				<p class="empty-note">ノートが未入力です</p>
-			{/if}
-		</div>
-	{/if}
 </div>
 
-{#if showExpandModal && taskTitle}
-	<NoteExpandModal bind:value {onsave} {taskTitle} onclose={() => (showExpandModal = false)} />
-{/if}
-
 <style>
-	.note-editor {
+	.modal-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.5);
 		display: flex;
-		flex-direction: column;
-		gap: 0;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		overflow: hidden;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+		animation: fadeIn 200ms ease;
 	}
 
-	.editor-toolbar {
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	.modal {
+		width: 90vw;
+		max-width: 1200px;
+		height: 80vh;
+		background: var(--color-surface);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-lg);
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+		animation: scaleIn 200ms ease;
+	}
+
+	@keyframes scaleIn {
+		from {
+			opacity: 0;
+			transform: scale(0.95);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	.modal-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 16px 20px;
+		border-bottom: 1px solid var(--color-border);
+		flex-shrink: 0;
+	}
+
+	.modal-title {
+		font-size: 15px;
+		font-weight: 600;
+		color: var(--color-text);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		flex: 1;
+	}
+
+	.modal-close {
+		width: 32px;
+		height: 32px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: var(--radius-sm);
+		color: var(--color-text-muted);
+		font-size: 20px;
+		line-height: 1;
+		transition:
+			background var(--transition-fast),
+			color var(--transition-fast);
+	}
+
+	.modal-close:hover {
+		background: var(--color-border-light);
+		color: var(--color-text);
+	}
+
+	.modal-toolbar {
 		display: flex;
 		align-items: center;
 		border-bottom: 1px solid var(--color-border);
 		background: var(--color-border-light);
+		padding: 0 8px;
+		flex-shrink: 0;
 	}
 
-	.mode-btn {
+	.modal-toolbar .mode-btn {
 		padding: 8px 16px;
 		font-size: 12px;
 		font-weight: 500;
@@ -536,16 +632,16 @@
 			border-color var(--transition-fast);
 	}
 
-	.mode-btn:hover {
+	.modal-toolbar .mode-btn:hover {
 		color: var(--color-text);
 	}
 
-	.mode-btn.active {
+	.modal-toolbar .mode-btn.active {
 		color: var(--color-primary);
 		border-bottom-color: var(--color-primary);
 	}
 
-	.expand-btn {
+	.shrink-btn {
 		margin-left: auto;
 		padding: 8px 16px;
 		font-size: 12px;
@@ -554,7 +650,7 @@
 		transition: color var(--transition-fast);
 	}
 
-	.expand-btn:hover {
+	.shrink-btn:hover {
 		color: var(--color-primary);
 	}
 
@@ -565,6 +661,7 @@
 		padding: 4px;
 		border-bottom: 1px solid var(--color-border);
 		background: var(--color-border-light);
+		flex-shrink: 0;
 	}
 
 	.toolbar-group {
@@ -612,28 +709,25 @@
 		text-decoration: line-through;
 	}
 
-	.note-textarea {
+	.modal-textarea {
+		flex: 1;
 		width: 100%;
-		min-height: 240px;
-		padding: 12px;
+		padding: 16px;
 		border: none;
 		border-radius: 0;
-		resize: vertical;
+		resize: none;
 		font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
 		font-size: 13px;
 		line-height: 1.6;
+		outline: none;
 	}
 
-	.note-textarea:focus {
-		box-shadow: none;
-	}
-
-	.note-preview {
-		padding: 12px;
-		min-height: 240px;
+	.modal-preview {
+		flex: 1;
+		padding: 16px;
+		overflow-y: auto;
 		font-size: 13px;
 		line-height: 1.7;
-		overflow-y: auto;
 	}
 
 	.empty-note {
