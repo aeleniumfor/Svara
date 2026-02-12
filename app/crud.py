@@ -19,7 +19,6 @@ def _apply_status_invariants(task: Task, new_status: TaskStatus | None = None) -
     """Apply invariants based on task status.
 
     - done_at is set only when status is done
-    - today_rank is cleared when status is not next/doing
     """
     status = new_status if new_status is not None else task.status
 
@@ -29,26 +28,6 @@ def _apply_status_invariants(task: Task, new_status: TaskStatus | None = None) -
             task.done_at = datetime.now(timezone.utc)
     else:
         task.done_at = None
-
-    # Today整合性 (status制約): next/doing 以外なら today_rank を None に
-    if status not in (TaskStatus.next, TaskStatus.doing):
-        task.today_rank = None
-
-
-def _clear_conflicting_today_rank(db: Session, rank: int, exclude_task_id: int | None = None) -> None:
-    """Clear today_rank from any task that has the same rank (重複禁止).
-
-    Args:
-        db: Database session
-        rank: The rank to clear (1, 2, or 3)
-        exclude_task_id: Task ID to exclude from clearing (for updates)
-    """
-    stmt = select(Task).where(Task.today_rank == rank)
-    if exclude_task_id is not None:
-        stmt = stmt.where(Task.id != exclude_task_id)
-
-    for task in db.scalars(stmt).all():
-        task.today_rank = None
 
 
 # =============================================================================
@@ -103,15 +82,10 @@ def create_task(db: Session, task_in: TaskCreate, tag_ids: list[int] | None = No
         note=task_in.note,
         status=task_in.status,
         due_at=task_in.due_at,
-        today_rank=task_in.today_rank,
     )
 
     # Apply invariants
     _apply_status_invariants(task)
-
-    # Handle today_rank uniqueness
-    if task.today_rank is not None:
-        _clear_conflicting_today_rank(db, task.today_rank)
 
     # Handle tags
     if tag_ids:
@@ -148,12 +122,8 @@ def update_task(db: Session, task_id: int, task_in: TaskUpdate, tag_ids: list[in
         if field != "status":  # Already handled
             setattr(task, field, value)
 
-    # Apply invariants (this may clear today_rank based on status)
+    # Apply invariants
     _apply_status_invariants(task)
-
-    # Handle today_rank uniqueness (after invariants, so we know the final rank)
-    if task.today_rank is not None:
-        _clear_conflicting_today_rank(db, task.today_rank, exclude_task_id=task.id)
 
     # Handle tags if provided
     if tag_ids is not None:
@@ -178,28 +148,9 @@ def delete_task(db: Session, task_id: int) -> bool:
 # =============================================================================
 # Task List Queries (Views)
 # =============================================================================
-def get_inbox(db: Session) -> list[Task]:
-    """Get tasks in Inbox (status = inbox)."""
-    stmt = select(Task).where(Task.status == TaskStatus.inbox).order_by(Task.created_at.desc())
-    return list(db.scalars(stmt).all())
-
-
-def get_today(db: Session) -> list[Task]:
-    """Get tasks in Today (today_rank is set), ordered by rank."""
-    stmt = select(Task).where(Task.today_rank.isnot(None)).order_by(Task.today_rank)
-    return list(db.scalars(stmt).all())
-
-
 def get_backlog(db: Session) -> list[Task]:
-    """Get tasks in Backlog (status is next/doing/waiting, today_rank is not set)."""
-    stmt = (
-        select(Task)
-        .where(
-            Task.status.in_([TaskStatus.next, TaskStatus.doing, TaskStatus.waiting]),
-            Task.today_rank.is_(None),
-        )
-        .order_by(Task.created_at.desc())
-    )
+    """Get tasks in Backlog (status = backlog)."""
+    stmt = select(Task).where(Task.status == TaskStatus.backlog).order_by(Task.created_at.desc())
     return list(db.scalars(stmt).all())
 
 
