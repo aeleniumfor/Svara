@@ -33,9 +33,8 @@ class TaskCreate(BaseModel):
 
     title: str = Field(..., min_length=1, max_length=255)
     note: str | None = None
-    status: TaskStatus = TaskStatus.inbox
+    status: TaskStatus = TaskStatus.backlog
     due_at: datetime | None = None
-    today_rank: int | None = Field(default=None, ge=1, le=3)
 
 
 class TaskUpdate(BaseModel):
@@ -45,7 +44,6 @@ class TaskUpdate(BaseModel):
     note: str | None = None
     status: TaskStatus | None = None
     due_at: datetime | None = None
-    today_rank: int | None = Field(default=None, ge=1, le=3)
 
 
 class TaskResponse(BaseModel):
@@ -58,7 +56,6 @@ class TaskResponse(BaseModel):
     note: str | None
     status: TaskStatus
     due_at: datetime | None
-    today_rank: int | None
     created_at: datetime
     updated_at: datetime
     done_at: datetime | None

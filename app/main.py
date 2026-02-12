@@ -109,21 +109,9 @@ def delete_task(task_id: int, db: DbSession) -> None:
 # =============================================================================
 # Task Views (Lists)
 # =============================================================================
-@app.get("/views/inbox", response_model=list[TaskResponse])
-def get_inbox(db: DbSession) -> list[TaskResponse]:
-    """Get tasks in Inbox (status = inbox)."""
-    return crud.get_inbox(db)
-
-
-@app.get("/views/today", response_model=list[TaskResponse])
-def get_today(db: DbSession) -> list[TaskResponse]:
-    """Get tasks in Today (today_rank is set), ordered by rank."""
-    return crud.get_today(db)
-
-
 @app.get("/views/backlog", response_model=list[TaskResponse])
 def get_backlog(db: DbSession) -> list[TaskResponse]:
-    """Get tasks in Backlog (status is next/doing/waiting, today_rank not set)."""
+    """Get tasks in Backlog (status = backlog)."""
     return crud.get_backlog(db)
 
 
@@ -136,21 +124,6 @@ def get_done(db: DbSession) -> list[TaskResponse]:
 # =============================================================================
 # Task Operations (Quick Actions)
 # =============================================================================
-@app.post("/tasks/{task_id}/promote", response_model=TaskResponse)
-def promote_to_next(task_id: int, db: DbSession) -> TaskResponse:
-    """Promote a task from inbox to next."""
-    task = crud.get_task(db, task_id)
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
-    if task.status != TaskStatus.inbox:
-        raise HTTPException(status_code=400, detail="Task must be in inbox to promote")
-
-    from app.schemas import TaskUpdate
-
-    updated = crud.update_task(db, task_id, TaskUpdate(status=TaskStatus.next))
-    return updated
-
-
 @app.post("/tasks/{task_id}/complete", response_model=TaskResponse)
 def complete_task(task_id: int, db: DbSession) -> TaskResponse:
     """Mark a task as done."""
