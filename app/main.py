@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -12,14 +14,17 @@ from app.schemas import (
     TaskUpdateWithTags,
 )
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(
     title="Svara",
     description="シンプルなタスク管理API",
     version="0.1.0",
 )
+
+@app.on_event("startup")
+def _create_database_tables() -> None:
+    if os.getenv("SVARA_SKIP_CREATE_TABLES") == "1":
+        return
+    Base.metadata.create_all(bind=engine)
 
 # CORS設定
 app.add_middleware(
@@ -72,7 +77,10 @@ def delete_tag(tag_id: int, db: DbSession) -> None:
 @app.post("/tasks", response_model=TaskResponse, status_code=201)
 def create_task(task_in: TaskCreateWithTags, db: DbSession) -> TaskResponse:
     """Create a new task."""
-    return crud.create_task(db, task_in, tag_ids=task_in.tag_ids)
+    try:
+        return crud.create_task(db, task_in, tag_ids=task_in.tag_ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/tasks", response_model=list[TaskResponse])
@@ -93,7 +101,10 @@ def get_task(task_id: int, db: DbSession) -> TaskResponse:
 @app.patch("/tasks/{task_id}", response_model=TaskResponse)
 def update_task(task_id: int, task_in: TaskUpdateWithTags, db: DbSession) -> TaskResponse:
     """Update a task."""
-    task = crud.update_task(db, task_id, task_in, tag_ids=task_in.tag_ids)
+    try:
+        task = crud.update_task(db, task_id, task_in, tag_ids=task_in.tag_ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return task

@@ -35,6 +35,11 @@ def _apply_status_invariants(task: Task, new_status: TaskStatus | None = None) -
         task.start_at = datetime.now(timezone.utc)
 
 
+def _validate_due_at_required_for_status(status: TaskStatus, due_at: datetime | None) -> None:
+    if status in {TaskStatus.doing, TaskStatus.waiting} and due_at is None:
+        raise ValueError("due_at is required when status is doing or waiting")
+
+
 # =============================================================================
 # Tag CRUD Operations
 # =============================================================================
@@ -82,6 +87,8 @@ def delete_tag(db: Session, tag_id: int) -> bool:
 # =============================================================================
 def create_task(db: Session, task_in: TaskCreate, tag_ids: list[int] | None = None) -> Task:
     """Create a new task."""
+    _validate_due_at_required_for_status(task_in.status, task_in.due_at)
+
     task = Task(
         title=task_in.title,
         note=task_in.note,
@@ -130,6 +137,8 @@ def update_task(db: Session, task_id: int, task_in: TaskUpdate, tag_ids: list[in
 
     # Apply invariants
     _apply_status_invariants(task)
+
+    _validate_due_at_required_for_status(task.status, task.due_at)
 
     # Handle tags if provided
     if tag_ids is not None:

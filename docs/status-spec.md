@@ -61,26 +61,23 @@ waiting ←──────────┘
 
 **意味**: `done_at` は完了日時を正確に記録するフィールドであり、`done` 以外のステータスでは常に `None` である。
 
-## 5. ビューとステータスの関係
+## 5. Views API と UI 表示
 
-各ビューはステータスでフィルタリングされる。
+`/views/*` は **フィルタ済みリストを返す便利エンドポイント**であり、UI の「画面」や「カラム」と 1:1 で対応する概念ではない。  
+UI 側は基本的に `GET /tasks` を取得して、ステータスや `due_at` で表示を組み立てる。
 
-| ビュー | エンドポイント | フィルタ条件 | ソート順 |
+### 5.1 Views API（便利エンドポイント）
+
+| 名前 | エンドポイント | フィルタ条件 | ソート順 |
 |---|---|---|---|
-| **Backlog** | `GET /views/backlog` | `status == backlog` | `created_at` 降順 |
-| **Done** | `GET /views/done` | `status == done` | `done_at` 降順 |
+| Backlog | `GET /views/backlog` | `status == backlog` | `created_at` 降順 |
+| Done | `GET /views/done` | `status == done` | `done_at` 降順 |
 
-### 5.1 ビュー割り当てルール
+### 5.2 UI（画面）での主な表示ルール（概要）
 
-```
-タスク
-  ├── status == backlog  → Backlog ビュー
-  ├── status == doing    → （ビューなし、全タスク一覧で表示）
-  ├── status == waiting  → （ビューなし、全タスク一覧で表示）
-  └── status == done     → Done ビュー
-```
-
-> **注意**: `doing` と `waiting` のタスクは専用のビューはなく、全タスク一覧（`GET /tasks`）で確認できる。
+- Backlog 画面（`/`）: `Backlog / Doing / Waiting` の3カラムを `status` で振り分けて表示（**期限ありのみ**）
+- 期限なし画面（`/no-due`）: `due_at == null` かつ `status != done`
+- Done 画面（`/done`）: `status == done`
 
 ## 6. API でのステータスの扱い
 
