@@ -30,7 +30,7 @@ FastAPI（バックエンド） + SvelteKit（フロントエンド）で構成�
 
 ## 前提条件
 
-- **Python 3.13 以上**
+- **Python 3.14 以上**
 - **Node.js 20 以上**
 - **npm 10 以上**
 
