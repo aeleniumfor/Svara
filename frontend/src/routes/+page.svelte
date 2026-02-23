@@ -8,6 +8,7 @@
 	import StatusSection from '$lib/components/StatusSection.svelte';
 	import TaskDetailPanel from '$lib/components/TaskDetailPanel.svelte';
 	import TagFilter from '$lib/components/TagFilter.svelte';
+	import { closeTaskSelection, toggleTaskSelection } from '$lib/taskUiActions';
 
 	// D&D state
 	let isDragging = $state(false);
@@ -121,14 +122,6 @@
 		};
 	}
 
-	function handleSelectTask(task: Task) {
-		taskStore.selectTask(task.id === taskStore.selectedTaskId ? null : task.id);
-	}
-
-	function handleClosePanel() {
-		taskStore.selectTask(null);
-	}
-
 	async function handleCreateTask() {
 		try {
 			const task = await taskStore.createTask({
@@ -165,7 +158,7 @@
 					items={backlogItems}
 					color="var(--color-backlog)"
 					selectedTaskId={taskStore.selectedTaskId}
-					onselect={handleSelectTask}
+					onselect={toggleTaskSelection}
 					onconsider={handleConsider('backlog')}
 					onfinalize={handleFinalize('backlog')}
 				/>
@@ -177,7 +170,7 @@
 					items={doingItems}
 					color="var(--color-doing)"
 					selectedTaskId={taskStore.selectedTaskId}
-					onselect={handleSelectTask}
+					onselect={toggleTaskSelection}
 					onconsider={handleConsider('doing')}
 					onfinalize={handleFinalize('doing')}
 				/>
@@ -189,7 +182,7 @@
 					items={waitingItems}
 					color="var(--color-waiting)"
 					selectedTaskId={taskStore.selectedTaskId}
-					onselect={handleSelectTask}
+					onselect={toggleTaskSelection}
 					onconsider={handleConsider('waiting')}
 					onfinalize={handleFinalize('waiting')}
 				/>
@@ -197,7 +190,7 @@
 		</div>
 
 		{#if showPanel && selectedTask}
-			<TaskDetailPanel task={selectedTask} onclose={handleClosePanel} />
+			<TaskDetailPanel task={selectedTask} onclose={closeTaskSelection} />
 		{/if}
 	</div>
 
@@ -254,9 +247,6 @@
 		min-width: 0;
 	}
 
-	.content.with-panel .board {
-		/* Shrink board when panel is open */
-	}
 
 	.column {
 		background: var(--color-bg);
