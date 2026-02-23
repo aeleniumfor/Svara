@@ -45,4 +45,3 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
 	done: 'Done'
 };
 
-export const STATUS_ORDER: TaskStatus[] = ['backlog', 'doing', 'waiting', 'done'];

@@ -27,9 +27,6 @@ export async function fetchTasks(): Promise<Task[]> {
 	return request<Task[]>('/tasks');
 }
 
-export async function fetchTask(id: number): Promise<Task> {
-	return request<Task>(`/tasks/${id}`);
-}
 
 export async function createTask(data: TaskCreate): Promise<Task> {
 	return request<Task>('/tasks', {
