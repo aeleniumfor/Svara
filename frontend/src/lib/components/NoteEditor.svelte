@@ -9,15 +9,26 @@
 	function openExpandModal() {
 		expandedMode = mode;
 		showExpandModal = true;
-		document.body.style.overflow = 'hidden';
 	}
 
 	function closeExpandModal() {
 		showExpandModal = false;
 		onsave?.();
-		document.body.style.overflow = '';
 	}
 
+
+
+	$effect(() => {
+		if (!showExpandModal) {
+			document.body.style.overflow = '';
+			return;
+		}
+
+		document.body.style.overflow = 'hidden';
+		return () => {
+			document.body.style.overflow = '';
+		};
+	});
 	function handleOverlayKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') {
 			event.preventDefault();
